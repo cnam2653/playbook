@@ -1,1 +1,356 @@
-hi
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧠 Sports Analytics Platform</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        .container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 2rem;
+        }
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 3rem;
+        }
+        .header h1 { 
+            font-size: 3rem; 
+            margin-bottom: 1rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .header p { 
+            font-size: 1.2rem; 
+            opacity: 0.9;
+        }
+        .upload-card {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        .upload-zone {
+            border: 3px dashed #667eea;
+            border-radius: 12px;
+            padding: 3rem 2rem;
+            text-align: center;
+            background: #f8f9ff;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 1.5rem;
+        }
+        .upload-zone:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+        .upload-zone.dragover {
+            border-color: #28a745;
+            background: #f0fff4;
+        }
+        .upload-icon { font-size: 4rem; margin-bottom: 1rem; }
+        .upload-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+        .upload-button:hover { transform: translateY(-2px); }
+        .upload-button:disabled { 
+            background: #ccc; 
+            cursor: not-allowed; 
+            transform: none;
+        }
+        .sport-select {
+            margin: 1rem 0;
+            padding: 0.75rem;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            width: 100%;
+            font-size: 1rem;
+        }
+        .analysis-section {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            display: none;
+        }
+        .query-input {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1rem;
+            margin: 1rem 0;
+        }
+        .ask-button {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .response-area {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-top: 1rem;
+            border-left: 4px solid #667eea;
+            white-space: pre-wrap;
+        }
+        .suggestions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin: 1rem 0;
+        }
+        .suggestion-btn {
+            background: #f1f3f4;
+            border: 1px solid #dadce0;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .suggestion-btn:hover { background: #e8f0fe; }
+        .status { 
+            padding: 1rem; 
+            margin: 1rem 0;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .status.loading { background: #fff3cd; color: #856404; }
+        .loading { display: none; align-items: center; gap: 0.5rem; }
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧠 Sports Analytics</h1>
+            <p>Upload a sports clip and ask questions about what happened</p>
+        </div>
+
+        <div class="upload-card" id="uploadCard">
+            <h2>Upload Sports Video</h2>
+            
+            <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+                <div class="upload-icon">📹</div>
+                <h3>Drop video here or click to browse</h3>
+                <p>Supported: MP4, AVI, MOV, MKV • Max: 200MB</p>
+            </div>
+
+            <input type="file" id="fileInput" accept=".mp4,.avi,.mov,.mkv,.webm" style="display: none">
+            
+            <select class="sport-select" id="sportSelect">
+                <option value="soccer">Soccer / Football</option>
+                <option value="basketball">Basketball</option>
+                <option value="american_football">American Football</option>
+                <option value="rugby">Rugby</option>
+                <option value="hockey">Hockey</option>
+            </select>
+
+            <button class="upload-button" id="uploadButton" onclick="uploadVideo()" disabled>
+                Analyze Video
+            </button>
+
+            <div class="loading" id="uploadLoading">
+                <div class="spinner"></div>
+                <span>Processing video...</span>
+            </div>
+
+            <div class="status" id="uploadStatus"></div>
+        </div>
+
+        <div class="analysis-section" id="analysisSection">
+            <h2>🎬 Analysis Complete!</h2>
+            <p>Ask questions about your sports clip:</p>
+
+            <div class="suggestions">
+                <button class="suggestion-btn" onclick="setQuery('What is happening in this clip?')">
+                    What's happening?
+                </button>
+                <button class="suggestion-btn" onclick="setQuery('Who dominated possession?')">
+                    Who dominated?
+                </button>
+                <button class="suggestion-btn" onclick="setQuery('Which player was fastest?')">
+                    Fastest player?
+                </button>
+                <button class="suggestion-btn" onclick="setQuery('What strategy is being used?')">
+                    Team strategy?
+                </button>
+            </div>
+
+            <input type="text" class="query-input" id="queryInput" placeholder="Ask anything about the clip..." 
+                   onkeypress="if(event.key==='Enter') askQuestion()">
+            
+            <button class="ask-button" onclick="askQuestion()">Ask Question</button>
+
+            <div class="loading" id="queryLoading">
+                <div class="spinner"></div>
+                <span>Analyzing...</span>
+            </div>
+
+            <div class="response-area" id="responseArea" style="display: none;">
+                <strong>Answer:</strong><br>
+                <span id="responseText"></span>
+            </div>
+
+            <button class="upload-button" onclick="newAnalysis()" 
+                    style="margin-top: 2rem; background: #6c757d;">
+                Analyze New Video
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let currentAnalysisId = null;
+        let selectedFile = null;
+
+        // File upload handling
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            if (e.target.files.length > 0) {
+                selectedFile = e.target.files[0];
+                document.getElementById('uploadButton').disabled = false;
+                document.querySelector('.upload-zone h3').textContent = `Selected: ${selectedFile.name}`;
+            }
+        });
+
+        // Drag and drop
+        const uploadZone = document.getElementById('uploadZone');
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                selectedFile = e.dataTransfer.files[0];
+                document.getElementById('uploadButton').disabled = false;
+                document.querySelector('.upload-zone h3').textContent = `Selected: ${selectedFile.name}`;
+            }
+        });
+
+        async function uploadVideo() {
+            if (!selectedFile) return;
+
+            const formData = new FormData();
+            formData.append('video', selectedFile);
+            formData.append('sport', document.getElementById('sportSelect').value);
+
+            document.getElementById('uploadButton').disabled = true;
+            document.getElementById('uploadLoading').style.display = 'flex';
+            document.getElementById('uploadStatus').textContent = '';
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    currentAnalysisId = data.analysis_id;
+                    showStatus('Analysis complete! 🎉', 'success');
+                    document.getElementById('uploadCard').style.display = 'none';
+                    document.getElementById('analysisSection').style.display = 'block';
+                } else {
+                    showStatus(`Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus('Network error. Make sure the backend is running.', 'error');
+            } finally {
+                document.getElementById('uploadLoading').style.display = 'none';
+                document.getElementById('uploadButton').disabled = false;
+            }
+        }
+
+        function setQuery(query) {
+            document.getElementById('queryInput').value = query;
+        }
+
+        async function askQuestion() {
+            const query = document.getElementById('queryInput').value.trim();
+            if (!query || !currentAnalysisId) return;
+
+            document.getElementById('queryLoading').style.display = 'flex';
+            document.getElementById('responseArea').style.display = 'none';
+
+            try {
+                const response = await fetch(`/analysis/${currentAnalysisId}/query`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('responseText').textContent = data.response;
+                    document.getElementById('responseArea').style.display = 'block';
+                } else {
+                    showStatus(`Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus('Error getting response', 'error');
+            } finally {
+                document.getElementById('queryLoading').style.display = 'none';
+            }
+        }
+
+        function showStatus(message, type) {
+            const status = document.getElementById('uploadStatus');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+        }
+
+        function newAnalysis() {
+            currentAnalysisId = null;
+            selectedFile = null;
+            document.getElementById('uploadCard').style.display = 'block';
+            document.getElementById('analysisSection').style.display = 'none';
+            document.getElementById('uploadButton').disabled = true;
+            document.getElementById('queryInput').value = '';
+            document.getElementById('responseArea').style.display = 'none';
+            document.querySelector('.upload-zone h3').textContent = 'Drop video here or click to browse';
+        }
+    </script>
+</body>
+</html>
