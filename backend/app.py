@@ -2,18 +2,26 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import os
 import logging
+import json
 from werkzeug.utils import secure_filename
 import uuid
+from dotenv import load_dotenv
 
-from src.services.video_processor import VideoProcessor
-from src.services.openai_service import OpenAIService
+# Load environment variables
+load_dotenv()
+
+from advanced_tracker import AdvancedTracker
+from src.routes.analysis_routes import analysis
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/api/*": {"origins": "*"}})
+
+# Register blueprints under /api
+app.register_blueprint(analysis, url_prefix="/api/analysis")
 
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024  # 200MB max file size
@@ -26,7 +34,17 @@ def allowed_file(filename):
 @app.route('/', methods=['GET'])
 def index():
     """Serve the index page"""
-    return send_from_directory('.', 'index.html')
+    return send_from_directory('..', 'index.html')
+
+@app.route('/outputs/<filename>')
+def serve_output_video(filename):
+    """Serve processed video files"""
+    return send_from_directory('outputs', filename)
+
+@app.route('/uploads/<filename>')
+def serve_upload_video(filename):
+    """Serve uploaded video files"""
+    return send_from_directory('uploads', filename)
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -58,9 +76,40 @@ def upload_video():
         
         logger.info(f"File uploaded: {filepath}")
         
-        # Process video
-        processor = VideoProcessor()
-        analysis_id = processor.process_video(filepath, sport)
+        # Process video with Advanced Tracker (Roboflow API + ellipses + IDs)
+        tracker = AdvancedTracker()
+        analysis_id = str(uuid.uuid4())
+        
+        # Generate output video path
+        output_filename = f"analyzed_{unique_filename}"
+        output_path = os.path.join('outputs', output_filename)
+        os.makedirs('outputs', exist_ok=True)
+        
+        # Run advanced tracking with Roboflow API
+        tracks = tracker.process_video(filepath, output_path, use_cache=True)
+        
+        # Save analysis results (excluding tracking data for JSON compatibility)
+        analysis_data = {
+            'analysis_id': analysis_id,
+            'status': 'completed',
+            'created_at': str(uuid.uuid4()),
+            'video_info': {'filename': unique_filename},
+            'stats': {
+                'total_players': sum(len(frame) for frame in tracks.get('players', [])),
+                'total_frames': len(tracks.get('players', [])),
+                'ball_detected_frames': len([f for f in tracks.get('ball', []) if f])
+            },
+            'model_metrics': {
+                'mAP@50': 84.5,
+                'precision': 93.3,
+                'recall': 75.2
+            }
+        }
+        
+        # Save to file
+        os.makedirs('analysis_results', exist_ok=True)
+        with open(f'analysis_results/{analysis_id}.json', 'w') as f:
+            json.dump(analysis_data, f)
         
         return jsonify({
             'analysis_id': analysis_id,
@@ -72,137 +121,6 @@ def upload_video():
         logger.error(f"Upload/processing error: {e}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/analysis/<analysis_id>/status', methods=['GET'])
-def get_analysis_status(analysis_id):
-    """Get the status of an analysis"""
-    try:
-        analysis_data = VideoProcessor.load_analysis(analysis_id)
-        
-        return jsonify({
-            'analysis_id': analysis_id,
-            'status': analysis_data.get('status', 'completed'),
-            'created_at': analysis_data.get('created_at'),
-            'video_info': analysis_data.get('video_info', {}),
-            'player_count': len(analysis_data.get('movement_stats', {}).get('individual_stats', [])),
-            'possession_leader': analysis_data.get('possession_stats', {}).get('most_possession')
-        }), 200
-        
-    except FileNotFoundError:
-        return jsonify({
-            'analysis_id': analysis_id,
-            'status': 'not_found',
-            'error': 'Analysis not found'
-        }), 404
-    except Exception as e:
-        logger.error(f"Error getting analysis status: {e}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/analysis/<analysis_id>/query', methods=['POST'])
-def query_analysis(analysis_id):
-    """Ask questions about the analysis"""
-    try:
-        data = request.get_json()
-        query = data.get('query', 'Give me a summary of this clip')
-        
-        # Load analysis data
-        analysis_data = VideoProcessor.load_analysis(analysis_id)
-        
-        # Generate response using OpenAI service
-        openai_service = OpenAIService()
-        
-        if 'summary' in query.lower() or len(query.split()) < 3:
-            response = openai_service.generate_clip_summary(analysis_data, query)
-        else:
-            response = openai_service.answer_query(query, analysis_data)
-        
-        return jsonify({
-            'query': query,
-            'response': response,
-            'analysis_id': analysis_id
-        }), 200
-        
-    except FileNotFoundError:
-        return jsonify({'error': 'Analysis not found'}), 404
-    except Exception as e:
-        logger.error(f"Error processing query: {e}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/analysis/<analysis_id>/stats', methods=['GET'])
-def get_analysis_stats(analysis_id):
-    """Get detailed statistics from analysis"""
-    try:
-        analysis_data = VideoProcessor.load_analysis(analysis_id)
-        
-        stats = {
-            'video_info': analysis_data.get('video_info', {}),
-            'possession_stats': analysis_data.get('possession_stats', {}),
-            'movement_stats': analysis_data.get('movement_stats', {}),
-            'events': analysis_data.get('events', [])[:10],  # First 10 events
-            'summary': {
-                'total_players': len(analysis_data.get('movement_stats', {}).get('individual_stats', [])),
-                'total_events': len(analysis_data.get('events', [])),
-                'analysis_duration': analysis_data.get('video_info', {}).get('duration', 0)
-            }
-        }
-        
-        return jsonify(stats), 200
-        
-    except FileNotFoundError:
-        return jsonify({'error': 'Analysis not found'}), 404
-    except Exception as e:
-        logger.error(f"Error getting stats: {e}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/analysis/<analysis_id>/player/<int:player_id>', methods=['GET'])
-def get_player_stats(analysis_id, player_id):
-    """Get stats for a specific player"""
-    try:
-        analysis_data = VideoProcessor.load_analysis(analysis_id)
-        
-        # Find player in movement stats
-        movement_stats = analysis_data.get('movement_stats', {})
-        individual_stats = movement_stats.get('individual_stats', [])
-        
-        player_stats = None
-        for stats in individual_stats:
-            if stats.get('track_id') == player_id:
-                player_stats = stats
-                break
-        
-        if not player_stats:
-            return jsonify({'error': f'Player {player_id} not found'}), 404
-        
-        # Get possession data for this player
-        possession_stats = analysis_data.get('possession_stats', {})
-        possession_percentages = possession_stats.get('possession_percentages', {})
-        player_possession = possession_percentages.get(str(player_id), 0)
-        
-        result = {
-            'player_id': player_id,
-            'movement': player_stats,
-            'possession_percentage': player_possession,
-            'rankings': {
-                'possession': _get_player_ranking(player_id, possession_percentages, reverse=True),
-                'speed': _get_player_ranking(player_id, {str(s['track_id']): s.get('max_speed_mps', 0) for s in individual_stats}, reverse=True),
-                'activity': _get_player_ranking(player_id, {str(s['track_id']): s.get('activity_score', 0) for s in individual_stats}, reverse=True)
-            }
-        }
-        
-        return jsonify(result), 200
-        
-    except FileNotFoundError:
-        return jsonify({'error': 'Analysis not found'}), 404
-    except Exception as e:
-        logger.error(f"Error getting player stats: {e}")
-        return jsonify({'error': str(e)}), 500
-
-def _get_player_ranking(player_id: int, stats_dict: dict, reverse: bool = True) -> int:
-    """Get player's ranking in given stats"""
-    sorted_players = sorted(stats_dict.items(), key=lambda x: float(x[1]), reverse=reverse)
-    for rank, (pid, _) in enumerate(sorted_players, 1):
-        if int(pid) == player_id:
-            return rank
-    return len(sorted_players) + 1
 
 if __name__ == '__main__':
     # Create necessary directories
