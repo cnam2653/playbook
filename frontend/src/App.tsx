@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Brain, ArrowDown } from 'lucide-react'
+import { Brain, ArrowDown, Linkedin, Github } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import DemoVideos from './components/DemoVideos'
@@ -19,6 +19,34 @@ function App() {
     <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
       <div className="h-screen flex items-center justify-center bg-slate-900 relative overflow-hidden">
+        {/* Connect Button - Top right of hero section */}
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, delay: 1 }}
+          className="absolute top-6 right-6 z-50 flex items-center gap-3"
+        >
+          <span className="text-sm font-medium text-white bg-slate-900/80 backdrop-blur-sm px-3 py-2 rounded-lg hidden md:block">
+            Connect
+          </span>
+          <a
+            href="https://www.linkedin.com/in/chrisnam28/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-white/90 backdrop-blur-sm hover:bg-blue-600 hover:text-white text-slate-900 p-2.5 rounded-lg shadow-lg transition-all duration-300 hover:scale-110"
+          >
+            <Linkedin className="w-5 h-5" />
+          </a>
+          <a
+            href="https://github.com/cnam2653"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-white/90 backdrop-blur-sm hover:bg-gray-900 hover:text-white text-slate-900 p-2.5 rounded-lg shadow-lg transition-all duration-300 hover:scale-110"
+          >
+            <Github className="w-5 h-5" />
+          </a>
+        </motion.div>
+
         {/* Animated background gradient */}
         <motion.div
           className="absolute inset-0 opacity-30"
@@ -48,10 +76,20 @@ function App() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-4"
+            className="text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-3"
           >
             Sports Analytics Platform
           </motion.h1>
+
+          {/* Slogan */}
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="text-2xl md:text-3xl font-light italic text-blue-300 mb-6"
+          >
+            Transform your game, one frame at a time
+          </motion.p>
 
           {/* Subtitle */}
           <motion.p
@@ -60,7 +98,7 @@ function App() {
             transition={{ duration: 0.6, delay: 0.4 }}
             className="text-gray-300 text-lg md:text-xl mb-8 max-w-2xl mx-auto"
           >
-            Transform your game footage into professional insights with AI-powered video analysis
+            AI-powered video analysis for professional sports insights
           </motion.p>
 
           {/* Get Started Button */}
