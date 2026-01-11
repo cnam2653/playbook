@@ -1,4 +1,6 @@
 import { useState, useRef } from 'react'
+import { Upload, Video, Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 interface VideoInputProps {
   onFileSelect: (file: File | null) => void
@@ -91,9 +93,13 @@ const VideoInput: React.FC<VideoInputProps> = ({ onFileSelect, onAnalysisStart }
           `}
         >
           <div className="text-center">
-            <div className="text-6xl mb-4">📹</div>
+            <div className="mb-4 flex justify-center">
+              <div className="p-4 bg-blue-100 rounded-full">
+                <Upload className="w-12 h-12 text-blue-600" />
+              </div>
+            </div>
             <h3 className="text-xl font-semibold mb-2 text-gray-800">
-              Drag and drop a video or wtv
+              Drag and drop a video or click to browse
             </h3>
             <p className="text-gray-600 mb-4">
               Upload your sports footage for instant analysis
@@ -138,17 +144,28 @@ const VideoInput: React.FC<VideoInputProps> = ({ onFileSelect, onAnalysisStart }
         </div>
 
         {/* Upload Button */}
-        <button
+        <Button
           onClick={handleUpload}
           disabled={!file || isUploading}
-          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-6 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:from-blue-700 hover:to-purple-700 transition-all duration-300"
+          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+          size="lg"
         >
-          {isUploading ? 'Analyzing Video...' : 'Analyze Video'}
-        </button>
+          {isUploading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              Analyzing Video...
+            </>
+          ) : (
+            <>
+              <Video className="w-4 h-4 mr-2" />
+              Analyze Video
+            </>
+          )}
+        </Button>
 
         {isUploading && (
           <div className="flex items-center justify-center space-x-2 text-gray-600">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+            <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
             <span className="text-sm">Processing video...</span>
           </div>
         )}

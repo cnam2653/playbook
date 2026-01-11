@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { Bot, Sparkles, Zap, Loader2, Send } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 interface AIAnalysisProps {
   analysisId: string | null
@@ -91,7 +93,11 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ analysisId }) => {
         {!analysisId ? (
           <div className="flex-1 flex items-center justify-center text-gray-500 text-center">
             <div>
-              <div className="text-4xl mb-4">🤖</div>
+              <div className="mb-4 flex justify-center">
+                <div className="p-4 bg-purple-100 rounded-full">
+                  <Bot className="w-12 h-12 text-purple-600" />
+                </div>
+              </div>
               <p>Upload a video to get AI-powered insights and ask questions about your sports footage.</p>
             </div>
           </div>
@@ -101,14 +107,15 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ analysisId }) => {
             {isLoading ? (
               <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
                 <div className="flex items-center space-x-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
                   <span className="text-sm text-blue-700">Generating AI summary...</span>
                 </div>
               </div>
             ) : analysis && (
               <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
-                <h3 className="text-lg font-semibold text-blue-800 mb-2 flex items-center">
-                  🤖 AI Analysis Summary
+                <h3 className="text-lg font-semibold text-blue-800 mb-2 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5" />
+                  AI Analysis Summary
                 </h3>
                 <div className="text-blue-700 whitespace-pre-wrap text-sm">
                   {analysis}
@@ -118,7 +125,10 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ analysisId }) => {
 
             {/* Quick Questions */}
             <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-semibold mb-3 text-gray-800">⚽ Quick Analysis</h3>
+              <h3 className="font-semibold mb-3 text-gray-800 flex items-center gap-2">
+                <Zap className="w-5 h-5 text-yellow-600" />
+                Quick Analysis
+              </h3>
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {quickQuestions.map((question, index) => (
                   <button
@@ -143,13 +153,24 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ analysisId }) => {
                   placeholder="Ask anything about the clip..."
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 />
-                <button
+                <Button
                   onClick={() => handleQuery()}
                   disabled={!query || isQuerying}
-                  className="w-full mt-2 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                  className="w-full mt-2 bg-green-600 hover:bg-green-700"
+                  size="default"
                 >
-                  {isQuerying ? 'Analyzing...' : 'Ask Question'}
-                </button>
+                  {isQuerying ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 mr-2" />
+                      Ask Question
+                    </>
+                  )}
+                </Button>
               </div>
 
               {/* Query Response */}
@@ -159,7 +180,7 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ analysisId }) => {
                   <div className="mt-2 text-sm text-gray-700">
                     {isQuerying ? (
                       <div className="flex items-center space-x-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                        <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
                         <span>Analyzing...</span>
                       </div>
                     ) : (
