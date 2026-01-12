@@ -53,7 +53,7 @@ const VideoInput: React.FC<VideoInputProps> = ({ onFileSelect, onAnalysisStart }
     formData.append('sport', sport)
 
     try {
-      const response = await fetch('http://localhost:5000/upload', {
+      const response = await fetch('http://localhost:5001/upload', {
         method: 'POST',
         body: formData
       })

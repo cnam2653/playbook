@@ -14,9 +14,11 @@ from player_ball_assigner import PlayerBallAssigner
 from camera_movement_estimator import CameraMovementEstimator
 
 class AdvancedTracker:
-    def __init__(self, model_path="../runs/soccer-model-yolov8n4/weights/best.pt"):
+    def __init__(self, model_path="models/best.pt"):
         # Initialize with your custom trained model
         print(f"Loading custom trained model: {model_path}")
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"Model file not found at {model_path}. Please ensure best.pt is in the models directory.")
         self.model = YOLO(model_path)
         print(f"Model device: {self.model.device}")
         print(f"Model classes: {self.model.names}")

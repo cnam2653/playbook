@@ -4,3 +4,11 @@ roboflow
 requests
 openai
 opencv-python
+python-dotenv
+ultralytics
+supervision
+pandas
+scikit-learn
+numpy<2
+torch
+torchvision
