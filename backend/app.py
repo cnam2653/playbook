@@ -18,7 +18,11 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+CORS(app, resources={
+    r"/api/*": {"origins": "*"},
+    r"/upload": {"origins": "*"},
+    r"/outputs/*": {"origins": "*"}
+})
 
 # Register blueprints under /api
 app.register_blueprint(analysis, url_prefix="/api/analysis")
@@ -114,7 +118,8 @@ def upload_video():
         return jsonify({
             'analysis_id': analysis_id,
             'message': 'Video uploaded and analysis completed!',
-            'status': 'completed'
+            'status': 'completed',
+            'output_video': output_filename
         }), 200
         
     except Exception as e:

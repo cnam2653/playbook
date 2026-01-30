@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Bot, Sparkles, Zap, Loader2, Send } from 'lucide-react'
+import { Bot, Sparkles, Zap, Loader2, Send, MessageSquare, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface AIAnalysisProps {
   analysisId: string | null
@@ -12,14 +13,15 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ analysisId }) => {
   const [query, setQuery] = useState('')
   const [queryResponse, setQueryResponse] = useState('')
   const [isQuerying, setIsQuerying] = useState(false)
+  const [activeQuestion, setActiveQuestion] = useState<string | null>(null)
 
   const quickQuestions: string[] = [
-    "What player had the most possession in this clip?",
-    "Which player was the fastest?", 
-    "What tactical formation is being used?",
-    "How many passes were completed?",
-    "Which areas of the pitch had most activity?",
-    "What was the average speed of player movements?"
+    "Who had the most possession?",
+    "Which player was fastest?",
+    "What formation is being used?",
+    "How many passes completed?",
+    "Most active pitch areas?",
+    "Average player speed?"
   ]
 
   useEffect(() => {
@@ -30,12 +32,12 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ analysisId }) => {
 
   const fetchAnalysis = async () => {
     if (!analysisId) return
-    
+
     setIsLoading(true)
     try {
       const response = await fetch(`http://localhost:5001/api/analysis/${analysisId}/summary`)
       const data = await response.json()
-      
+
       if (response.ok) {
         setAnalysis(data.summary)
       }
@@ -51,6 +53,7 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ analysisId }) => {
 
     setIsQuerying(true)
     setQueryResponse('')
+    setActiveQuestion(question || query)
 
     try {
       const response = await fetch(`http://localhost:5001/api/analysis/${analysisId}/query`, {
@@ -62,7 +65,7 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ analysisId }) => {
       })
 
       const data = await response.json()
-      
+
       if (response.ok) {
         setQueryResponse(data.response)
       }
@@ -87,111 +90,174 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ analysisId }) => {
 
   return (
     <div className="h-full flex flex-col">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800">AI Analysis/Chatbot or something</h2>
-      
-      <div className="flex-1 flex flex-col space-y-6 overflow-hidden">
-        {!analysisId ? (
-          <div className="flex-1 flex items-center justify-center text-gray-500 text-center">
-            <div>
-              <div className="mb-4 flex justify-center">
-                <div className="p-4 bg-purple-100 rounded-full">
-                  <Bot className="w-12 h-12 text-purple-600" />
+      <div className="flex-1 flex flex-col space-y-4 overflow-hidden">
+        <AnimatePresence mode="wait">
+          {!analysisId ? (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex-1 flex items-center justify-center"
+            >
+              <div className="text-center px-4">
+                {/* Bot icon with glow effect */}
+                <div className="mb-6 inline-block">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-[#c8ff00]/20 rounded-full blur-xl animate-pulse" />
+                    <div className="relative w-20 h-20 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center">
+                      <Bot className="w-10 h-10 text-zinc-500" />
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <p>Upload a video to get AI-powered insights and ask questions about your sports footage.</p>
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* AI Summary */}
-            {isLoading ? (
-              <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
-                <div className="flex items-center space-x-2">
-                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                  <span className="text-sm text-blue-700">Generating AI summary...</span>
-                </div>
-              </div>
-            ) : analysis && (
-              <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
-                <h3 className="text-lg font-semibold text-blue-800 mb-2 flex items-center gap-2">
-                  <Sparkles className="w-5 h-5" />
-                  AI Analysis Summary
+
+                <h3 className="text-sm font-medium text-zinc-400 mb-2">
+                  AI Assistant Ready
                 </h3>
-                <div className="text-blue-700 whitespace-pre-wrap text-sm">
-                  {analysis}
+                <p className="text-xs text-zinc-600 max-w-[200px] mx-auto">
+                  Upload a video to unlock AI-powered insights and real-time analysis
+                </p>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="analysis"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex-1 flex flex-col space-y-4 overflow-hidden"
+            >
+              {/* AI Summary Section */}
+              {isLoading ? (
+                <div className="p-4 rounded-xl bg-zinc-900/50 border border-zinc-800">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-[#c8ff00]/10 flex items-center justify-center">
+                      <Loader2 className="w-4 h-4 text-[#c8ff00] animate-spin" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="h-2 bg-zinc-800 rounded animate-pulse w-3/4 mb-2" />
+                      <div className="h-2 bg-zinc-800 rounded animate-pulse w-1/2" />
+                    </div>
+                  </div>
+                </div>
+              ) : analysis && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-4 rounded-xl bg-gradient-to-br from-[#c8ff00]/10 to-transparent border border-[#c8ff00]/20"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-[#c8ff00]/20 flex items-center justify-center flex-shrink-0">
+                      <Sparkles className="w-4 h-4 text-[#c8ff00]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-xs font-semibold text-[#c8ff00] uppercase tracking-wider mb-2">
+                        AI Summary
+                      </h3>
+                      <p className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">
+                        {analysis}
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Quick Questions */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 px-1">
+                  <Zap className="w-3 h-3 text-[#c8ff00]" />
+                  <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider">
+                    Quick Questions
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+                  {quickQuestions.map((question, index) => (
+                    <motion.button
+                      key={index}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      onClick={() => handleQuickQuestion(question)}
+                      disabled={isQuerying}
+                      className={`
+                        group text-left p-2.5 text-[11px] rounded-lg transition-all duration-200
+                        ${activeQuestion === question && isQuerying
+                          ? 'bg-[#c8ff00]/10 border border-[#c8ff00]/30 text-[#c8ff00]'
+                          : 'bg-zinc-900/50 border border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200 hover:bg-zinc-800/50'
+                        }
+                      `}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <ChevronRight className={`w-3 h-3 transition-transform ${activeQuestion === question ? 'rotate-90 text-[#c8ff00]' : 'group-hover:translate-x-0.5'}`} />
+                        {question}
+                      </span>
+                    </motion.button>
+                  ))}
                 </div>
               </div>
-            )}
 
-            {/* Quick Questions */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-semibold mb-3 text-gray-800 flex items-center gap-2">
-                <Zap className="w-5 h-5 text-yellow-600" />
-                Quick Analysis
-              </h3>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {quickQuestions.map((question, index) => (
+              {/* Custom Query Input */}
+              <div className="space-y-3">
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Ask anything about the clip..."
+                    className="w-full px-4 py-3 pr-12 rounded-xl bg-zinc-900/70 border border-zinc-800 text-sm text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-[#c8ff00]/50 focus:ring-1 focus:ring-[#c8ff00]/20 transition-all"
+                  />
                   <button
-                    key={index}
-                    onClick={() => handleQuickQuestion(question)}
-                    className="w-full text-left p-2 text-sm bg-white border border-gray-300 rounded hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                    onClick={() => handleQuery()}
+                    disabled={!query || isQuerying}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-[#c8ff00] text-black hover:bg-[#d4ff33] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                   >
-                    {question}
+                    {isQuerying ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
                   </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Custom Query */}
-            <div className="flex-1 flex flex-col space-y-4">
-              <div>
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Ask anything about the clip..."
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                />
-                <Button
-                  onClick={() => handleQuery()}
-                  disabled={!query || isQuerying}
-                  className="w-full mt-2 bg-green-600 hover:bg-green-700"
-                  size="default"
-                >
-                  {isQuerying ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      Analyzing...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-4 h-4 mr-2" />
-                      Ask Question
-                    </>
-                  )}
-                </Button>
+                </div>
               </div>
 
               {/* Query Response */}
-              {(queryResponse || isQuerying) && (
-                <div className="flex-1 bg-gray-50 border-l-4 border-blue-600 p-4 rounded overflow-y-auto">
-                  <strong className="text-gray-800">Answer:</strong>
-                  <div className="mt-2 text-sm text-gray-700">
-                    {isQuerying ? (
-                      <div className="flex items-center space-x-2">
-                        <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                        <span>Analyzing...</span>
+              <AnimatePresence>
+                {(queryResponse || isQuerying) && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, height: 0 }}
+                    animate={{ opacity: 1, y: 0, height: 'auto' }}
+                    exit={{ opacity: 0, y: -10, height: 0 }}
+                    className="flex-1 min-h-[100px] overflow-hidden"
+                  >
+                    <div className="h-full p-4 rounded-xl bg-zinc-900/50 border border-zinc-800">
+                      <div className="flex items-start gap-3">
+                        <div className="w-6 h-6 rounded-md bg-zinc-800 flex items-center justify-center flex-shrink-0">
+                          <MessageSquare className="w-3 h-3 text-zinc-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          {isQuerying ? (
+                            <div className="flex items-center gap-2 text-sm text-zinc-400">
+                              <span className="inline-flex gap-1">
+                                <span className="w-1.5 h-1.5 bg-[#c8ff00] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                <span className="w-1.5 h-1.5 bg-[#c8ff00] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                <span className="w-1.5 h-1.5 bg-[#c8ff00] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                              </span>
+                              Analyzing...
+                            </div>
+                          ) : (
+                            <p className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">
+                              {queryResponse}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    ) : (
-                      <div className="whitespace-pre-wrap">{queryResponse}</div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </>
-        )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   )
