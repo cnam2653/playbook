@@ -17,7 +17,6 @@ interface DemoVideosProps {
 }
 
 const DemoVideos: React.FC<DemoVideosProps> = ({ onSelectDemo }) => {
-  const [selectedDemo, setSelectedDemo] = useState<number | null>(null)
   const [playingVideo, setPlayingVideo] = useState<string | null>(null)
 
   const demoVideos: DemoVideo[] = [
@@ -32,14 +31,12 @@ const DemoVideos: React.FC<DemoVideosProps> = ({ onSelectDemo }) => {
   ]
 
   const handlePlayDemo = (video: DemoVideo) => {
-    setSelectedDemo(video.id)
     setPlayingVideo(video.url)
     onSelectDemo(video.url)
   }
 
   const handleCloseVideo = () => {
     setPlayingVideo(null)
-    setSelectedDemo(null)
   }
 
   return (

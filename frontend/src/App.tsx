@@ -7,7 +7,7 @@ import VideoInput from './components/VideoInput'
 import AIAnalysis from './components/AIAnalysis'
 
 function App() {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [, setSelectedFile] = useState<File | null>(null)
   const [analysisId, setAnalysisId] = useState<string | null>(null)
 
   const scrollToAnalysis = () => {

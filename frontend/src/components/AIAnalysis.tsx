@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { Bot, Sparkles, Zap, Loader2, Send, MessageSquare, ChevronRight } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface AIAnalysisProps {
