@@ -28,6 +28,7 @@ backend/stubs/
 *.pt
 *.avi
 *.mp4
+!frontend/public/demo.mp4
 *.mov
 *.mkv
 *.webm
