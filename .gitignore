@@ -64,6 +64,7 @@ Thumbs.db
 
 # Screenshots
 *.png
+!frontend/public/book.png
 *.jpg
 *.jpeg
 *.gif
