@@ -60,7 +60,6 @@ class TeamAssigner:
         self.team_colors[2] = kmeans.cluster_centers_[1]
 
     def get_player_team(self, frame, player_bbox, player_id):
-        # If already assigned, return cached team
         if player_id in self.player_team_dict:
             return self.player_team_dict[player_id]
 
@@ -69,7 +68,7 @@ class TeamAssigner:
 
         player_color = self.get_player_color(frame, player_bbox)
         team_id = self.kmeans.predict(player_color.reshape(1, -1))[0]
-        team_id += 1  # Make it 1 or 2 instead of 0 or 1
+        team_id += 1
 
         self.player_team_dict[player_id] = team_id
         return team_id
@@ -127,26 +126,24 @@ class AdvancedTracker:
         tracks = {
             "players": [],
             "referees": [],
+            "goalkeepers": [],
             "ball": []
         }
 
+        # Track IDs that have EVER been detected as goalkeeper
+        goalkeeper_track_ids = set()
+
+        # Single pass: collect all detections
         for frame_num, detection in enumerate(detections):
             cls_names = detection.names
             cls_names_inv = {v: k for k, v in cls_names.items()}
 
-            # Convert to supervision Detection format
             detection_supervision = sv.Detections.from_ultralytics(detection)
-
-            # Convert GoalKeeper to player object
-            for object_ind, class_id in enumerate(detection_supervision.class_id):
-                if cls_names[class_id] == "goalkeeper":
-                    detection_supervision.class_id[object_ind] = cls_names_inv["player"]
-
-            # Track Objects with ByteTrack
             detection_with_tracks = self.tracker.update_with_detections(detection_supervision)
 
             tracks["players"].append({})
             tracks["referees"].append({})
+            tracks["goalkeepers"].append({})
             tracks["ball"].append({})
 
             for frame_detection in detection_with_tracks:
@@ -154,10 +151,13 @@ class AdvancedTracker:
                 cls_id = frame_detection[3]
                 track_id = frame_detection[4]
 
-                if cls_id == cls_names_inv.get('player'):
+                # Track goalkeeper IDs
+                if cls_id == cls_names_inv.get('goalkeeper'):
+                    goalkeeper_track_ids.add(track_id)
+                    tracks["goalkeepers"][frame_num][track_id] = {"bbox": bbox}
+                elif cls_id == cls_names_inv.get('player'):
                     tracks["players"][frame_num][track_id] = {"bbox": bbox}
-
-                if cls_id == cls_names_inv.get('referee'):
+                elif cls_id == cls_names_inv.get('referee'):
                     tracks["referees"][frame_num][track_id] = {"bbox": bbox}
 
             for frame_detection in detection_supervision:
@@ -167,13 +167,27 @@ class AdvancedTracker:
                 if cls_id == cls_names_inv.get('ball'):
                     tracks["ball"][frame_num][1] = {"bbox": bbox}
 
+        # Post-process: Move any player detections with goalkeeper IDs to goalkeepers
+        # This ensures consistency - once a goalkeeper, always a goalkeeper
+        print(f"Identified {len(goalkeeper_track_ids)} goalkeeper track IDs: {goalkeeper_track_ids}")
+
+        for frame_num in range(len(tracks["players"])):
+            players_to_move = []
+            for track_id in tracks["players"][frame_num]:
+                if track_id in goalkeeper_track_ids:
+                    players_to_move.append(track_id)
+
+            for track_id in players_to_move:
+                # Move from players to goalkeepers
+                tracks["goalkeepers"][frame_num][track_id] = tracks["players"][frame_num][track_id]
+                del tracks["players"][frame_num][track_id]
+
         return tracks
 
     def interpolate_ball_positions(self, ball_positions):
         ball_positions = [x.get(1, {}).get('bbox', []) for x in ball_positions]
         df_ball_positions = pd.DataFrame(ball_positions, columns=['x1', 'y1', 'x2', 'y2'])
 
-        # Interpolate missing values
         df_ball_positions = df_ball_positions.interpolate()
         df_ball_positions = df_ball_positions.bfill()
 
@@ -188,6 +202,7 @@ class AdvancedTracker:
                     if object_type == 'ball':
                         position = get_center_of_bbox(bbox)
                     else:
+                        # Players, goalkeepers, and referees use foot position
                         position = get_foot_position(bbox)
                     tracks[object_type][frame_num][track_id]['position'] = position
 
@@ -251,11 +266,16 @@ class AdvancedTracker:
         cv2.drawContours(frame, [triangle_points], 0, (0, 0, 0), 2)
         return frame
 
-    def draw_team_ball_control(self, frame, frame_num, team_ball_control):
+    def draw_team_ball_control(self, frame, frame_num, team_ball_control, team_colors=None):
         overlay = frame.copy()
-        cv2.rectangle(overlay, (1350, 850), (1900, 970), (255, 255, 255), -1)
-        alpha = 0.4
+
+        # Dark semi-transparent background
+        cv2.rectangle(overlay, (1350, 830), (1900, 1000), (30, 30, 30), -1)
+        alpha = 0.85
         cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
+
+        # Add border
+        cv2.rectangle(frame, (1350, 830), (1900, 1000), (100, 100, 100), 2)
 
         team_ball_control_till_frame = team_ball_control[:frame_num + 1]
         team_1_num_frames = team_ball_control_till_frame[team_ball_control_till_frame == 1].shape[0]
@@ -263,17 +283,76 @@ class AdvancedTracker:
 
         total = team_1_num_frames + team_2_num_frames
         if total > 0:
-            team_1 = team_1_num_frames / total
-            team_2 = team_2_num_frames / total
+            team_1_pct = team_1_num_frames / total
+            team_2_pct = team_2_num_frames / total
         else:
-            team_1 = team_2 = 0.5
+            team_1_pct = team_2_pct = 0.5
 
-        cv2.putText(frame, f"Team 1 Ball Control: {team_1*100:.2f}%", (1400, 900), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 3)
-        cv2.putText(frame, f"Team 2 Ball Control: {team_2*100:.2f}%", (1400, 950), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 3)
+        # Title
+        cv2.putText(frame, "BALL POSSESSION", (1480, 860), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+
+        # Get team colors (default if not provided)
+        team_1_color = team_colors.get(1, (255, 255, 255)) if team_colors else (255, 255, 255)
+        team_2_color = team_colors.get(2, (0, 255, 0)) if team_colors else (0, 255, 0)
+
+        # Team 1 - with color indicator
+        cv2.circle(frame, (1380, 900), 12, team_1_color, -1)
+        cv2.circle(frame, (1380, 900), 12, (255, 255, 255), 2)
+        cv2.putText(frame, f"Team 1: {team_1_pct*100:.1f}%", (1410, 908), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+
+        # Team 1 progress bar
+        bar_width = int(400 * team_1_pct)
+        cv2.rectangle(frame, (1410, 915), (1410 + 400, 935), (60, 60, 60), -1)
+        cv2.rectangle(frame, (1410, 915), (1410 + bar_width, 935), team_1_color, -1)
+        cv2.rectangle(frame, (1410, 915), (1810, 935), (100, 100, 100), 1)
+
+        # Team 2 - with color indicator
+        cv2.circle(frame, (1380, 960), 12, team_2_color, -1)
+        cv2.circle(frame, (1380, 960), 12, (255, 255, 255), 2)
+        cv2.putText(frame, f"Team 2: {team_2_pct*100:.1f}%", (1410, 968), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+
+        # Team 2 progress bar
+        bar_width = int(400 * team_2_pct)
+        cv2.rectangle(frame, (1410, 975), (1410 + 400, 995), (60, 60, 60), -1)
+        cv2.rectangle(frame, (1410, 975), (1410 + bar_width, 995), team_2_color, -1)
+        cv2.rectangle(frame, (1410, 975), (1810, 995), (100, 100, 100), 1)
 
         return frame
 
-    def draw_annotations(self, video_frames, tracks, team_ball_control):
+    def draw_speed_above_player(self, frame, bbox, speed):
+        """Draw speed above a player's head"""
+        if speed is None:
+            return frame
+
+        x_center, _ = get_center_of_bbox(bbox)
+        y_top = int(bbox[1])  # Top of bounding box
+
+        # Position text above the player's head
+        text = f"{speed:.1f} km/h"
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.5
+        thickness = 2
+
+        # Get text size for background
+        (text_width, text_height), baseline = cv2.getTextSize(text, font, font_scale, thickness)
+
+        # Position - above player's head
+        x_text = x_center - text_width // 2
+        y_text = y_top - 10
+
+        # Draw background rectangle
+        padding = 3
+        cv2.rectangle(frame,
+                      (x_text - padding, y_text - text_height - padding),
+                      (x_text + text_width + padding, y_text + padding),
+                      (0, 0, 0), cv2.FILLED)
+
+        # Draw text
+        cv2.putText(frame, text, (x_text, y_text), font, font_scale, (255, 255, 255), thickness)
+
+        return frame
+
+    def draw_annotations(self, video_frames, tracks, team_ball_control, team_colors=None):
         output_video_frames = []
 
         for frame_num, frame in enumerate(video_frames):
@@ -282,16 +361,31 @@ class AdvancedTracker:
             player_dict = tracks["players"][frame_num]
             ball_dict = tracks["ball"][frame_num]
             referee_dict = tracks["referees"][frame_num]
+            goalkeeper_dict = tracks.get("goalkeepers", [{}] * len(video_frames))[frame_num]
 
-            # Draw Players
+            # Draw Players with speed
             for track_id, player in player_dict.items():
                 color = player.get("team_color", (0, 0, 255))
                 frame = self.draw_ellipse(frame, player["bbox"], color, track_id)
 
+                # Draw speed above player
+                speed = player.get('speed')
+                if speed is not None:
+                    frame = self.draw_speed_above_player(frame, player["bbox"], speed)
+
                 if player.get('has_ball', False):
                     frame = self.draw_triangle(frame, player["bbox"], (0, 0, 255))
 
-            # Draw Referees
+            # Draw Goalkeepers in BLACK (they don't affect ball possession)
+            for track_id, goalkeeper in goalkeeper_dict.items():
+                frame = self.draw_ellipse(frame, goalkeeper["bbox"], (0, 0, 0), track_id)  # Black color
+
+                # Draw speed above goalkeeper too
+                speed = goalkeeper.get('speed')
+                if speed is not None:
+                    frame = self.draw_speed_above_player(frame, goalkeeper["bbox"], speed)
+
+            # Draw Referees (yellow/cyan)
             for _, referee in referee_dict.items():
                 frame = self.draw_ellipse(frame, referee["bbox"], (0, 255, 255))
 
@@ -299,12 +393,70 @@ class AdvancedTracker:
             for track_id, ball in ball_dict.items():
                 frame = self.draw_triangle(frame, ball["bbox"], (0, 255, 0))
 
-            # Draw Team Ball Control
-            frame = self.draw_team_ball_control(frame, frame_num, team_ball_control)
+            # Draw Team Ball Control with team colors
+            frame = self.draw_team_ball_control(frame, frame_num, team_ball_control, team_colors)
 
             output_video_frames.append(frame)
 
         return output_video_frames
+
+    def add_speed_and_distance_to_tracks(self, tracks):
+        """Calculate speed and distance for all players and goalkeepers"""
+        frame_window = 5
+        frame_rate = 24
+        total_distance = {}
+
+        for object_type in ['players', 'goalkeepers']:
+            if object_type not in tracks:
+                continue
+
+            object_tracks = tracks[object_type]
+            number_of_frames = len(object_tracks)
+
+            for frame_num in range(0, number_of_frames, frame_window):
+                last_frame = min(frame_num + frame_window, number_of_frames - 1)
+
+                for track_id, _ in object_tracks[frame_num].items():
+                    if track_id not in object_tracks[last_frame]:
+                        continue
+
+                    start_position = object_tracks[frame_num][track_id].get('position_transformed')
+                    end_position = object_tracks[last_frame][track_id].get('position_transformed')
+
+                    if start_position is None or end_position is None:
+                        # Fallback to regular position
+                        start_position = object_tracks[frame_num][track_id].get('position')
+                        end_position = object_tracks[last_frame][track_id].get('position')
+
+                    if start_position is None or end_position is None:
+                        continue
+
+                    distance_covered = ((start_position[0] - end_position[0])**2 +
+                                        (start_position[1] - end_position[1])**2)**0.5
+
+                    time_elapsed = (last_frame - frame_num) / frame_rate
+                    if time_elapsed > 0:
+                        speed_meters_per_second = distance_covered / time_elapsed
+                        # Scale down if using pixel positions (rough estimate)
+                        if object_tracks[frame_num][track_id].get('position_transformed') is None:
+                            speed_meters_per_second = speed_meters_per_second * 0.05  # Scale factor for pixels
+                        speed_km_per_hour = speed_meters_per_second * 3.6
+                    else:
+                        speed_km_per_hour = 0
+
+                    if object_type not in total_distance:
+                        total_distance[object_type] = {}
+
+                    if track_id not in total_distance[object_type]:
+                        total_distance[object_type][track_id] = 0
+
+                    total_distance[object_type][track_id] += distance_covered
+
+                    for frame_num_batch in range(frame_num, last_frame):
+                        if track_id not in tracks[object_type][frame_num_batch]:
+                            continue
+                        tracks[object_type][frame_num_batch][track_id]['speed'] = speed_km_per_hour
+                        tracks[object_type][frame_num_batch][track_id]['distance'] = total_distance[object_type][track_id]
 
     def process_video(self, video_path, output_path, use_cache=False):
         print(f"Processing video: {video_path}")
@@ -335,22 +487,24 @@ class AdvancedTracker:
         print("Interpolating ball positions...")
         tracks["ball"] = self.interpolate_ball_positions(tracks["ball"])
 
-        # Assign teams
+        # Assign teams (only for players, not goalkeepers)
         print("Assigning player teams...")
         team_assigner = TeamAssigner()
 
-        # Initialize team colors from first frame
         if tracks['players'][0]:
             team_assigner.assign_team_color(frames[0], tracks['players'][0])
 
-        # Assign team to each player in each frame
         for frame_num, player_track in enumerate(tracks['players']):
             for player_id, track in player_track.items():
                 team = team_assigner.get_player_team(frames[frame_num], track['bbox'], player_id)
                 tracks['players'][frame_num][player_id]['team'] = team
                 tracks['players'][frame_num][player_id]['team_color'] = tuple(map(int, team_assigner.team_colors[team]))
 
-        # Assign ball possession
+        # Calculate speed and distance for players and goalkeepers
+        print("Calculating speed and distance...")
+        self.add_speed_and_distance_to_tracks(tracks)
+
+        # Assign ball possession (only to players, NOT goalkeepers)
         print("Assigning ball possession...")
         player_assigner = PlayerBallAssigner()
         team_ball_control = []
@@ -358,6 +512,7 @@ class AdvancedTracker:
         for frame_num, player_track in enumerate(tracks['players']):
             ball_bbox = tracks['ball'][frame_num].get(1, {}).get('bbox', [])
             if ball_bbox:
+                # Only check players for ball possession, not goalkeepers
                 assigned_player = player_assigner.assign_ball_to_player(player_track, ball_bbox)
 
                 if assigned_player != -1:
@@ -376,15 +531,20 @@ class AdvancedTracker:
 
         team_ball_control = np.array(team_ball_control)
 
+        # Get team colors for display
+        team_colors_display = {
+            1: tuple(map(int, team_assigner.team_colors[1])),
+            2: tuple(map(int, team_assigner.team_colors[2]))
+        }
+
         # Draw annotations
         print("Drawing annotations...")
-        output_video_frames = self.draw_annotations(frames, tracks, team_ball_control)
+        output_video_frames = self.draw_annotations(frames, tracks, team_ball_control, team_colors_display)
 
         # Save output video
         fps = 24
         height, width = frames[0].shape[:2]
 
-        # Save as AVI first (reliable with OpenCV)
         temp_path = output_path.replace('.mp4', '_temp.avi')
         print(f"Saving temp to: {temp_path}")
         fourcc = cv2.VideoWriter_fourcc(*'XVID')

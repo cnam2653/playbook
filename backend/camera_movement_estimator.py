@@ -44,7 +44,9 @@ class CameraMovementEstimator:
         for object_type, object_tracks in tracks.items():
             for frame_num, track in enumerate(object_tracks):
                 for track_id, track_info in track.items():
-                    position = track_info['position']
+                    position = track_info.get('position')
+                    if position is None:
+                        continue
                     camera_movement = camera_movement_per_frame[frame_num]
                     position_adjusted = (
                         position[0] - camera_movement[0],
@@ -73,16 +75,17 @@ class CameraMovementEstimator:
             max_distance = 0
             camera_movement_x, camera_movement_y = 0, 0
             
-            for i, (new, old) in enumerate(zip(new_features, old_features)):
-                new_features_point = new.ravel()
-                old_features_point = old.ravel()
-                
-                distance = measure_distance(new_features_point, old_features_point)
-                if distance > max_distance:
-                    max_distance = distance
-                    camera_movement_x, camera_movement_y = measure_xy_distance(
-                        old_features_point, new_features_point
-                    )
+            if new_features is not None and old_features is not None:
+                for i, (new, old) in enumerate(zip(new_features, old_features)):
+                    new_features_point = new.ravel()
+                    old_features_point = old.ravel()
+
+                    distance = measure_distance(new_features_point, old_features_point)
+                    if distance > max_distance:
+                        max_distance = distance
+                        camera_movement_x, camera_movement_y = measure_xy_distance(
+                            old_features_point, new_features_point
+                        )
             
             if max_distance > self.minimum_distance:
                 camera_movement[frame_num] = [camera_movement_x, camera_movement_y]
@@ -98,34 +101,62 @@ class CameraMovementEstimator:
         return camera_movement
     
     def draw_camera_movement(self, frames, camera_movement_per_frame):
-        """Draw camera movement information on frames"""
+        """Draw camera movement information on frames - top right with dark background"""
         output_frames = []
         for frame_num, frame in enumerate(frames):
             frame = frame.copy()
+            height, width = frame.shape[:2]
+
+            # Position in top right
+            box_width = 350
+            box_height = 90
+            x_start = width - box_width - 20
+            y_start = 20
+
             overlay = frame.copy()
-            cv2.rectangle(overlay, (0, 0), (500, 100), (255, 255, 255), -1)
-            alpha = 0.6
+            # Dark teal/cyan background
+            cv2.rectangle(overlay, (x_start, y_start), (x_start + box_width, y_start + box_height), (80, 80, 40), -1)
+            alpha = 0.85
             cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
-            
+
+            # Border
+            cv2.rectangle(frame, (x_start, y_start), (x_start + box_width, y_start + box_height), (120, 120, 80), 2)
+
             x_movement, y_movement = camera_movement_per_frame[frame_num]
-            frame = cv2.putText(
+
+            # Title
+            cv2.putText(
                 frame,
-                f"Camera Movement X: {x_movement:.2f}",
-                (10, 30),
+                "CAMERA MOVEMENT",
+                (x_start + 60, y_start + 25),
                 cv2.FONT_HERSHEY_SIMPLEX,
-                1,
-                (0, 0, 0),
-                3
+                0.6,
+                (200, 255, 255),
+                2
             )
-            frame = cv2.putText(
+
+            # X movement
+            cv2.putText(
                 frame,
-                f"Camera Movement Y: {y_movement:.2f}",
-                (10, 60),
+                f"X: {x_movement:+.2f}",
+                (x_start + 30, y_start + 55),
                 cv2.FONT_HERSHEY_SIMPLEX,
-                1,
-                (0, 0, 0),
-                3
+                0.7,
+                (255, 255, 255),
+                2
             )
+
+            # Y movement
+            cv2.putText(
+                frame,
+                f"Y: {y_movement:+.2f}",
+                (x_start + 180, y_start + 55),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.7,
+                (255, 255, 255),
+                2
+            )
+
             output_frames.append(frame)
-        
+
         return output_frames
