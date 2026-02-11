@@ -66,6 +66,7 @@ Thumbs.db
 *.png
 !frontend/public/book.png
 *.jpg
+!frontend/public/analysis example.jpg
 *.jpeg
 *.gif
 
