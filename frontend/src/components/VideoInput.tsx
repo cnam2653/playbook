@@ -80,7 +80,7 @@ const VideoInput: React.FC<VideoInputProps> = ({ onFileSelect, onAnalysisStart }
     formData.append('sport', 'soccer')
 
     try {
-      const response = await fetch('http://18.216.105.102:5001/upload', {
+      const response = await fetch('http://localhost:5001/upload', {
         method: 'POST',
         body: formData
       })
@@ -93,7 +93,7 @@ const VideoInput: React.FC<VideoInputProps> = ({ onFileSelect, onAnalysisStart }
 
         // Set the analyzed video URL
         if (data.output_video) {
-          setAnalyzedVideoUrl(`http://18.216.105.102:5001/outputs/${data.output_video}`)
+          setAnalyzedVideoUrl(`http://localhost:5001/outputs/${data.output_video}`)
         }
       } else {
         console.error('Upload failed:', data.error)

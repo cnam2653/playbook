@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Play, Film, X } from 'lucide-react'
+import { Play, Film, X, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -155,6 +155,26 @@ const DemoVideos: React.FC<DemoVideosProps> = ({ onSelectDemo }) => {
                   </Button>
                 </motion.div>
               ))}
+
+              {/* AI Analysis Example */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="mt-4 p-4 rounded-xl bg-zinc-900/50 border border-zinc-800/50"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="w-4 h-4 text-[#c8ff00]" />
+                  <h3 className="font-semibold text-sm text-zinc-200">AI Analysis Example</h3>
+                </div>
+                <div className="rounded-lg overflow-hidden border border-[#c8ff00]/20">
+                  <img
+                    src="/analysis example.jpg"
+                    alt="AI Analysis Example"
+                    className="w-full h-auto"
+                  />
+                </div>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
