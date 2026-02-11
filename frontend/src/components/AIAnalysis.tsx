@@ -34,7 +34,7 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ analysisId }) => {
 
     setIsLoading(true)
     try {
-      const response = await fetch(`http://localhost:5001/api/analysis/${analysisId}/summary`)
+      const response = await fetch(`http://18.216.105.102:5001/api/analysis/${analysisId}/summary`)
       const data = await response.json()
 
       if (response.ok) {
@@ -55,7 +55,7 @@ const AIAnalysis: React.FC<AIAnalysisProps> = ({ analysisId }) => {
     setActiveQuestion(question || query)
 
     try {
-      const response = await fetch(`http://localhost:5001/api/analysis/${analysisId}/query`, {
+      const response = await fetch(`http://18.216.105.102:5001/api/analysis/${analysisId}/query`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
