@@ -15,7 +15,7 @@ PlayBook is a professional sports analytics platform that transforms match foota
 
 * **Frontend**: React, TypeScript, Vite, Tailwind CSS, Framer Motion.
 * **Backend**: Flask, Python 3.12.
-* **Machine Learning**: YOLOv8 (Ultralytics), ByteTrack, Supervision.
+* **Machine Learning**: YOLOv8 (Ultralytics), ByteTrack, Supervision. RoboFlow
 * **Data Science**: Scikit-learn (K-Means), NumPy, Pandas.
 * **Generative AI**: OpenAI API (GPT-4).
 * **Infrastructure**: AWS EC2 (distributed inference) and Amazon RDS (data logging).
